@@ -30,7 +30,7 @@ public class SocialMediaAnalyzerDriver {
                 }
             }
 
-            String post = database.getValue("400");
+            String post = database.getValue("1");
             System.out.println(post);
         }
     }

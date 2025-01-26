@@ -1,38 +1,40 @@
 package com.ecs160.hw1;
+
 import java.util.List;
 
 public class BlueskyThread {
     private Post post;
-    private List<BlueskyThread>replies;
-    private int replyCount;
+    private List<BlueskyThread> replies;
 
-    Post getPost(){
+
+    Post getPost() {
         return this.post;
     }
 
-    List<BlueskyThread> getReplies(){
+    List<BlueskyThread> getReplies() {
         return this.replies;
     }
 
-    int getReplyCount(){
+}
+
+class Post {
+    private Record record;
+    private int replyCount;
+
+    Record getRecord() {
+        return this.record;
+    }
+
+    int getReplyCount() {
         return this.replyCount;
     }
 
 }
 
-class Post{
-    private Record record;
-
-    Record getRecord(){
-        return this.record;
-    }
-
-}
-
-class Record{
+class Record {
     private String text;
 
-    String getText(){
+    String getText() {
         return this.text;
     }
 }
