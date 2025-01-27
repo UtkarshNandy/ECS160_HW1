@@ -14,6 +14,13 @@ public class BlueskyThread {
     List<BlueskyThread> getReplies() {
         return this.replies;
     }
+    public void setPost(Post post) {
+        this.post = post;
+    }
+
+    public void setReplies(List<BlueskyThread> replies) {
+        this.replies = replies;
+    }
 
 }
 
@@ -33,8 +40,13 @@ class Post {
 
 class Record {
     private String text;
+    private String createdAt;  // Add timestamp field
 
     String getText() {
         return this.text;
+    }
+
+    String getCreatedAt() {
+        return this.createdAt;
     }
 }
