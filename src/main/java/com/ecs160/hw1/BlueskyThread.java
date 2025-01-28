@@ -24,23 +24,18 @@ public class BlueskyThread {
 
 }
 
-class Post {
-    private Record record;
-    private int replyCount;
-
-    Record getRecord() {
-        return this.record;
-    }
-
-    int getReplyCount() {
-        return this.replyCount;
-    }
-
-}
-
 class Record {
     private String text;
-    private String createdAt;  // Add timestamp field
+    private String createdAt;
+
+    // Add setters
+    public void setText(String text) {
+        this.text = text;
+    }
+
+    public void setCreatedAt(String createdAt) {
+        this.createdAt = createdAt;
+    }
 
     String getText() {
         return this.text;
@@ -48,5 +43,27 @@ class Record {
 
     String getCreatedAt() {
         return this.createdAt;
+    }
+}
+
+class Post {
+    private Record record;
+    private int replyCount;
+
+    // Add setter
+    public void setRecord(Record record) {
+        this.record = record;
+    }
+
+    public void setReplyCount(int replyCount) {
+        this.replyCount = replyCount;
+    }
+
+    Record getRecord() {
+        return this.record;
+    }
+
+    int getReplyCount() {
+        return this.replyCount;
     }
 }

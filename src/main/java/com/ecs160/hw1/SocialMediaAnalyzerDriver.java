@@ -4,20 +4,30 @@ import com.google.gson.*;
 import java.io.*;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 
 public class SocialMediaAnalyzerDriver {
-    public static void main(String[] args) {
-        // Parse command line arguments
-        String inputFile = "input.json";
-        boolean weighted = false;
+    public static Map<String, String> parseArguments(String[] args) {
+        Map<String, String> arguments = new HashMap<>();
+        arguments.put("file", "input.json"); // default values
+        arguments.put("weighted", "false");
 
         for (String arg : args) {
             if (arg.startsWith("file=")) {
-                inputFile = arg.substring(5);
+                arguments.put("file", arg.substring(5));
             } else if (arg.startsWith("weighted=")) {
-                weighted = Boolean.parseBoolean(arg.substring(9));
+                arguments.put("weighted", arg.substring(9));
             }
         }
+        return arguments;
+    }
+
+    public static void main(String[] args) {
+        // Parse command line arguments
+        Map<String, String> arguments = parseArguments(args);
+        String inputFile = arguments.get("file");
+        boolean weighted = Boolean.parseBoolean(arguments.get("weighted"));
 
         Database database = new Database();
         List<BlueskyThread> threads = new ArrayList<>();
@@ -59,9 +69,9 @@ public class SocialMediaAnalyzerDriver {
                 // Calculate and display statistics
                 StatisticsCalc stats = new StatisticsCalc(threads, weighted);
                 System.out.println("Analysis Results:");
-                System.out.println("Total Posts: " + (int)stats.getTotalPosts());
-                System.out.printf("Average Replies per Post: %.2f%n", stats.getAverageReplies());
-                System.out.println("Average Interval between Comments: " + stats.getAverageInterval());
+                System.out.println("Total posts: " + stats.getTotalPosts());
+                System.out.println("Average number of replies: " + String.format("%.2f", stats.getAverageReplies()));
+                System.out.println("Average duration between replies: " + stats.getAverageInterval());
             }
         } catch (FileNotFoundException e) {
             System.err.println("Error: Could not find input file: " + inputFile);
