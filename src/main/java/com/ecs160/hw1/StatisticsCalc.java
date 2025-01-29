@@ -10,12 +10,13 @@ public class StatisticsCalc {
         this.weighted = weighted;
     }
 
+    // calculates total posts, optionally weighted by word count
     public int getTotalPosts() {
         if (!weighted) {
             return threads.size();
         }
 
-        // Weighted calculation
+        // weighted calculation based on word count
         int maxWords = findMaxWordCount();
         double weightedTotal = 0;
         for (BlueskyThread thread : threads) {
@@ -25,6 +26,7 @@ public class StatisticsCalc {
         return (int) Math.round(weightedTotal);
     }
 
+    // calculates average replies per thread, optionally weighted
     public double getAverageReplies() {
         if (!weighted) {
             int totalReplies = 0;
@@ -37,7 +39,7 @@ public class StatisticsCalc {
             return threads.isEmpty() ? 0 : (double) totalReplies / threads.size();
         }
 
-        // Weighted calculation
+        // weighted calculation for replies
         int maxWords = findMaxWordCount();
         double weightedReplies = 0;
         for (BlueskyThread thread : threads) {
@@ -52,6 +54,7 @@ public class StatisticsCalc {
         return threads.isEmpty() ? 0 : weightedReplies / threads.size();
     }
 
+    // finds the maximum word count across all posts and replies
     private int findMaxWordCount() {
         int maxWords = 0;
         for (BlueskyThread thread : threads) {
@@ -68,6 +71,7 @@ public class StatisticsCalc {
         return maxWords;
     }
 
+    // calculates average time between replies in hh:mm:ss format
     public String getAverageInterval() {
         long totalSeconds = 0;
         int postsWithReplies = 0;
@@ -94,6 +98,7 @@ public class StatisticsCalc {
                 avgSeconds / 3600, (avgSeconds % 3600) / 60, avgSeconds % 60);
     }
 
+    // converts iso timestamp to milliseconds
     private long parseTimestamp(String timestamp) {
         return java.time.Instant.parse(timestamp).toEpochMilli();
     }

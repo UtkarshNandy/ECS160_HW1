@@ -8,10 +8,11 @@ import java.util.Map;
 import java.util.HashMap;
 
 public class SocialMediaAnalyzerDriver {
+    // parses command line arguments into a map with default values
     public static Map<String, String> parseArguments(String[] args) {
         Map<String, String> arguments = new HashMap<>();
-        arguments.put("file", "input.json"); // default values
-        arguments.put("weighted", "false");
+        arguments.put("file", "input.json"); // default input file
+        arguments.put("weighted", "false");   // default weighting setting
 
         for (String arg : args) {
             if (arg.startsWith("file=")) {
@@ -24,7 +25,7 @@ public class SocialMediaAnalyzerDriver {
     }
 
     public static void main(String[] args) {
-        // Parse command line arguments
+        // parse command line arguments
         Map<String, String> arguments = parseArguments(args);
         String inputFile = arguments.get("file");
         boolean weighted = Boolean.parseBoolean(arguments.get("weighted"));
@@ -33,7 +34,7 @@ public class SocialMediaAnalyzerDriver {
         List<BlueskyThread> threads = new ArrayList<>();
 
         try {
-            // Read JSON file
+            // read and parse json input file
             JsonElement element;
             if (inputFile.equals("input.json")) {
                 element = JsonParser.parseReader(new InputStreamReader(
@@ -47,6 +48,7 @@ public class SocialMediaAnalyzerDriver {
                 JsonArray feedArray = jsonObject.get("feed").getAsJsonArray();
                 int postId = 0;
 
+                // process each thread in the feed
                 for (JsonElement feedObject : feedArray) {
                     if (feedObject.getAsJsonObject().has("thread")) {
                         JsonObject threadObject = feedObject.getAsJsonObject().getAsJsonObject("thread");
@@ -54,7 +56,7 @@ public class SocialMediaAnalyzerDriver {
                         BlueskyThread thread = gson.fromJson(threadObject, BlueskyThread.class);
                         threads.add(thread);
 
-                        // Store in database
+                        // store thread data in database
                         List<String> replyIds = new ArrayList<>();
                         if (thread.getReplies() != null) {
                             for (int i = 0; i < thread.getReplies().size(); i++) {
@@ -66,7 +68,7 @@ public class SocialMediaAnalyzerDriver {
                     }
                 }
 
-                // Calculate and display statistics
+                // calculate and output statistics
                 StatisticsCalc stats = new StatisticsCalc(threads, weighted);
                 System.out.println("Analysis Results:");
                 System.out.println("Total posts: " + stats.getTotalPosts());

@@ -13,10 +13,12 @@ public class Database {
     private static final String REPLIES_KEY = "replies:";
     private static final String PARENT_KEY = "parent:";
 
+    // initializes redis connection
     public Database() {
         this.jedis = new Jedis("localhost", 6379);
     }
 
+    // stores a post and its reply ids in redis
     public void storePost(String postId, String postData, List<String> replyIds) {
         jedis.hset(POST_KEY + postId, "data", postData);
 
@@ -27,31 +29,25 @@ public class Database {
         }
     }
 
+    // stores a complete thread with replies in redis
     public void storeThread(BlueskyThread thread, String threadId) {
-        // Store the main post
         Gson gson = new Gson();
         jedis.hset(POST_KEY + threadId, "data", gson.toJson(thread.getPost()));
 
-        // Store replies with parent references
         if (thread.getReplies() != null) {
             for (int i = 0; i < thread.getReplies().size(); i++) {
                 String replyId = threadId + ":reply:" + i;
                 BlueskyThread reply = thread.getReplies().get(i);
 
-                // Store reply data
                 jedis.hset(POST_KEY + replyId, "data", gson.toJson(reply.getPost()));
-
-                // Store parent reference
                 jedis.set(PARENT_KEY + replyId, threadId);
-
-                // Add to parent's reply set
                 jedis.sadd(REPLIES_KEY + threadId, replyId);
             }
         }
     }
 
+    // reconstructs a thread from redis storage
     public BlueskyThread reconstructThread(String threadId) {
-        // Get the main post
         String postData = jedis.hget(POST_KEY + threadId, "data");
         if (postData == null) {
             return null;
@@ -61,7 +57,6 @@ public class Database {
         BlueskyThread thread = new BlueskyThread();
         thread.setPost(gson.fromJson(postData, Post.class));
 
-        // Get all replies
         Set<String> replyIds = jedis.smembers(REPLIES_KEY + threadId);
         if (!replyIds.isEmpty()) {
             List<BlueskyThread> replies = new ArrayList<>();
@@ -81,6 +76,7 @@ public class Database {
         return thread;
     }
 
+    // closes redis connection
     public void close() {
         if (jedis != null) {
             jedis.close();

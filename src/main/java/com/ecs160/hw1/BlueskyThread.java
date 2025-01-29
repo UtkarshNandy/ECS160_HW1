@@ -1,11 +1,9 @@
 package com.ecs160.hw1;
-
 import java.util.List;
 
 public class BlueskyThread {
     private Post post;
     private List<BlueskyThread> replies;
-
 
     Post getPost() {
         return this.post;
@@ -14,6 +12,7 @@ public class BlueskyThread {
     List<BlueskyThread> getReplies() {
         return this.replies;
     }
+
     public void setPost(Post post) {
         this.post = post;
     }
@@ -21,14 +20,13 @@ public class BlueskyThread {
     public void setReplies(List<BlueskyThread> replies) {
         this.replies = replies;
     }
-
 }
 
+// stores the content and metadata of a post
 class Record {
     private String text;
     private String createdAt;
 
-    // Add setters
     public void setText(String text) {
         this.text = text;
     }
@@ -46,11 +44,11 @@ class Record {
     }
 }
 
+// represents a social media post with its record and reply count
 class Post {
     private Record record;
     private int replyCount;
 
-    // Add setter
     public void setRecord(Record record) {
         this.record = record;
     }
