@@ -2,66 +2,31 @@ package com.ecs160.hw1;
 import java.util.List;
 
 public class BlueskyThread {
-    private Post post;
-    private List<BlueskyThread> replies;
+    private final String text;
+    private final String createdAt;
+    private final List<BlueskyThread> replies;
+    private final int replyCount;
 
-    Post getPost() {
-        return this.post;
-    }
-
-    List<BlueskyThread> getReplies() {
-        return this.replies;
-    }
-
-    public void setPost(Post post) {
-        this.post = post;
-    }
-
-    public void setReplies(List<BlueskyThread> replies) {
-        this.replies = replies;
-    }
-}
-
-// stores the content and metadata of a post
-class Record {
-    private String text;
-    private String createdAt;
-
-    public void setText(String text) {
+    public BlueskyThread(String text, String createdAt, List<BlueskyThread> replies, int replyCount) {
         this.text = text;
-    }
-
-    public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
-    }
-
-    String getText() {
-        return this.text;
-    }
-
-    String getCreatedAt() {
-        return this.createdAt;
-    }
-}
-
-// represents a social media post with its record and reply count
-class Post {
-    private Record record;
-    private int replyCount;
-
-    public void setRecord(Record record) {
-        this.record = record;
-    }
-
-    public void setReplyCount(int replyCount) {
+        this.replies = replies;
         this.replyCount = replyCount;
     }
 
-    Record getRecord() {
-        return this.record;
+    public String getText() {
+        return text;
     }
 
-    int getReplyCount() {
-        return this.replyCount;
+    public String getCreatedAt() {
+        return createdAt;
+    }
+
+    public List<BlueskyThread> getReplies() {
+        return replies;
+    }
+
+    public int getReplyCount() {
+        return replyCount;
     }
 }

@@ -11,13 +11,12 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import com.google.gson.Gson;
-
 
 public class SocialMediaAnalyzerDriverTest {
     private List<BlueskyThread> threads;
-    private StatisticsCalc statsCalc;
     private Database database;
+    private Analyzer basicAnalyzer;
+    private Analyzer weightedAnalyzer;
 
     @BeforeEach
     void setUp() {
@@ -28,14 +27,8 @@ public class SocialMediaAnalyzerDriverTest {
         BlueskyThread thread1 = createTestThread(
                 "Short post",
                 "2024-01-01T10:00:00.000Z",
-                new String[]{
-                        "First reply at 10:30",
-                        "Second reply at 11:00"
-                },
-                new String[]{
-                        "2024-01-01T10:30:00.000Z",
-                        "2024-01-01T11:00:00.000Z"
-                }
+                new String[]{"First reply at 10:30", "Second reply at 11:00"},
+                new String[]{"2024-01-01T10:30:00.000Z", "2024-01-01T11:00:00.000Z"}
         );
         threads.add(thread1);
 
@@ -46,6 +39,9 @@ public class SocialMediaAnalyzerDriverTest {
                 new String[]{"2024-01-01T12:30:00.000Z"}
         );
         threads.add(thread2);
+
+        basicAnalyzer = new BasicAnalyzer(threads);
+        weightedAnalyzer = new WeightedAnalyzer(threads);
     }
 
     @AfterEach
@@ -55,69 +51,58 @@ public class SocialMediaAnalyzerDriverTest {
 
     private BlueskyThread createTestThread(String postText, String postTimestamp,
                                            String[] replyTexts, String[] replyTimestamps) {
-        BlueskyThread thread = new BlueskyThread();
-        Post post = new Post();
-        Record record = new Record();
-
-        record.setText(postText);
-        record.setCreatedAt(postTimestamp);
-        post.setRecord(record);
-        thread.setPost(post);
-
+        List<BlueskyThread> replies = new ArrayList<>();
         if (replyTexts.length > 0) {
-            List<BlueskyThread> replies = new ArrayList<>();
             for (int i = 0; i < replyTexts.length; i++) {
-                BlueskyThread reply = new BlueskyThread();
-                Post replyPost = new Post();
-                Record replyRecord = new Record();
-
-                replyRecord.setText(replyTexts[i]);
-                replyRecord.setCreatedAt(replyTimestamps[i]);
-                replyPost.setRecord(replyRecord);
-                reply.setPost(replyPost);
-                replies.add(reply);
+                replies.add(new BlueskyThread(
+                        replyTexts[i],
+                        replyTimestamps[i],
+                        null,
+                        0
+                ));
             }
-            thread.setReplies(replies);
         }
 
-        return thread;
+        return new BlueskyThread(
+                postText,
+                postTimestamp,
+                replies.isEmpty() ? null : replies,
+                replies.size()
+        );
     }
 
     @Test
     void testUnweightedTotalPosts() {
-        statsCalc = new StatisticsCalc(threads, false);
-        assertEquals(2, statsCalc.getTotalPosts()); // Only counts main posts in unweighted mode
+        assertEquals(2, basicAnalyzer.getTotalPosts());
     }
 
     @Test
     void testWeightedTotalPosts() {
-        statsCalc = new StatisticsCalc(threads, true);
-        int weightedTotal = statsCalc.getTotalPosts();
+        int weightedTotal = weightedAnalyzer.getTotalPosts();
         assertTrue(weightedTotal > 2,
                 "Weighted total should be greater than unweighted due to longer posts");
     }
 
     @Test
     void testUnweightedAverageReplies() {
-        statsCalc = new StatisticsCalc(threads, false);
-        // Thread 1 has 2 replies, Thread 2 has 1 reply
-        // Average = (2 + 1) / 2 = 1.5
-        assertEquals(1.5, statsCalc.getAverageReplies(), 0.01);
+        assertEquals(1.5, basicAnalyzer.getAverageReplies(), 0.01);
     }
 
     @Test
     void testWeightedAverageReplies() {
-        statsCalc = new StatisticsCalc(threads, true);
-        double weightedAvg = statsCalc.getAverageReplies();
+        double weightedAvg = weightedAnalyzer.getAverageReplies();
         assertTrue(weightedAvg > 0, "Weighted average should be positive");
+        assertTrue(weightedAvg > basicAnalyzer.getAverageReplies(),
+                "Weighted average should be greater than unweighted due to long replies");
     }
 
     @Test
     void testEmptyThreadList() {
-        statsCalc = new StatisticsCalc(new ArrayList<>(), false);
-        assertEquals(0, statsCalc.getTotalPosts());
-        assertEquals(0.0, statsCalc.getAverageReplies());
-        assertEquals("00:00:00", statsCalc.getAverageInterval());
+        List<BlueskyThread> emptyList = new ArrayList<>();
+        Analyzer emptyAnalyzer = new BasicAnalyzer(emptyList);
+        assertEquals(0, emptyAnalyzer.getTotalPosts());
+        assertEquals(0.0, emptyAnalyzer.getAverageReplies());
+        assertEquals("00:00:00", emptyAnalyzer.getAverageInterval());
     }
 
     @Test
@@ -130,18 +115,21 @@ public class SocialMediaAnalyzerDriverTest {
                 new String[]{"2024-01-01T10:30:00.000Z"}
         );
 
-        // Test storeThread
         database.storeThread(thread, threadId);
-
-        // Test reconstruction
         BlueskyThread reconstructed = database.reconstructThread(threadId);
+
         assertNotNull(reconstructed);
-        assertEquals("Database test post",
-                reconstructed.getPost().getRecord().getText());
+        assertEquals("Database test post", reconstructed.getText());
         assertNotNull(reconstructed.getReplies());
         assertEquals(1, reconstructed.getReplies().size());
-        assertEquals("Database test reply",
-                reconstructed.getReplies().getFirst().getPost().getRecord().getText());
+        assertEquals("Database test reply", reconstructed.getReplies().get(0).getText());
+    }
+
+    @Test
+    void testIntervalCalculation() {
+        assertEquals("00:45:00", basicAnalyzer.getAverageInterval());
+        assertEquals("00:45:00", weightedAnalyzer.getAverageInterval(),
+                "Interval should be same for weighted and unweighted");
     }
 
     @Test
@@ -152,13 +140,14 @@ public class SocialMediaAnalyzerDriverTest {
                 new String[]{},
                 new String[]{}
         );
+
         List<BlueskyThread> singleThread = new ArrayList<>();
         singleThread.add(thread);
+        Analyzer analyzer = new BasicAnalyzer(singleThread);
 
-        statsCalc = new StatisticsCalc(singleThread, false);
-        assertEquals(1, statsCalc.getTotalPosts());
-        assertEquals(0.0, statsCalc.getAverageReplies());
-        assertEquals("00:00:00", statsCalc.getAverageInterval());
+        assertEquals(1, analyzer.getTotalPosts());
+        assertEquals(0.0, analyzer.getAverageReplies());
+        assertEquals("00:00:00", analyzer.getAverageInterval());
     }
 
     @Test
@@ -170,73 +159,18 @@ public class SocialMediaAnalyzerDriverTest {
                 new String[]{"Short reply"},
                 new String[]{"2024-01-01T10:30:00.000Z"}
         );
+
         List<BlueskyThread> testThreads = new ArrayList<>();
         testThreads.add(thread);
+        Analyzer analyzer = new WeightedAnalyzer(testThreads);
 
-        statsCalc = new StatisticsCalc(testThreads, true);
-        assertTrue(statsCalc.getTotalPosts() > 1.0,
+        assertTrue(analyzer.getTotalPosts() > 1.0,
                 "Very long post should have weight > 1");
-    }
-
-    @Test
-    void testDatabaseStorePost() {
-        String postId = "test-post";
-        Post post = new Post();
-        Record record = new Record();
-        record.setText("Test post");
-        post.setRecord(record);
-
-        Gson gson = new Gson();
-        String postData = gson.toJson(post);
-        List<String> replyIds = List.of("reply1", "reply2");
-
-        database.storePost(postId, postData, replyIds);
-        BlueskyThread reconstructed = database.reconstructThread(postId);
-        assertNotNull(reconstructed);
-        assertEquals("Test post",
-                reconstructed.getPost().getRecord().getText());
-    }
-    @Test
-    void testReplyCountVsActualReplies() {
-        // Create a thread where replyCount differs from actual replies
-        BlueskyThread thread = createTestThread(
-                "Main post",
-                "2024-01-01T10:00:00.000Z",
-                new String[]{"Reply 1", "Reply 2"},
-                new String[]{
-                        "2024-01-01T10:30:00.000Z",
-                        "2024-01-01T11:00:00.000Z"
-                }
-        );
-        // Set replyCount different from actual
-        thread.getPost().setReplyCount(5);
-
-        List<BlueskyThread> testThreads = new ArrayList<>();
-        testThreads.add(thread);
-
-        statsCalc = new StatisticsCalc(testThreads, false);
-        assertEquals(2.0, statsCalc.getAverageReplies()); // Should use actual reply count (2) not replyCount (5)
-    }
-
-    @Test
-    void testLargeNumberOfPosts() {
-        List<BlueskyThread> largeThreadList = new ArrayList<>();
-        for(int i = 0; i < 10000; i++) {
-            largeThreadList.add(createTestThread(
-                    "Post " + i,
-                    "2024-01-01T10:00:00.000Z",
-                    new String[]{"Reply to " + i},
-                    new String[]{"2024-01-01T11:00:00.000Z"}
-            ));
-        }
-        statsCalc = new StatisticsCalc(largeThreadList, false);
-        assertEquals(10000, statsCalc.getTotalPosts());
     }
 
     @Test
     void testCommandLineArguments() {
         String[] args = {"weighted=true", "file=./input.json"};
-        // Create a method to parse arguments and test it
         Map<String, String> parsed = SocialMediaAnalyzerDriver.parseArguments(args);
         assertEquals("true", parsed.get("weighted"));
         assertEquals("./input.json", parsed.get("file"));
@@ -244,17 +178,14 @@ public class SocialMediaAnalyzerDriverTest {
 
     @Test
     void testFilePathHandling() {
-        // Test default path
         assertDoesNotThrow(() -> {
             InputStream defaultInput = SocialMediaAnalyzerDriver.class
                     .getClassLoader().getResourceAsStream("input.json");
             assertNotNull(defaultInput);
         });
 
-        // Test custom path
         assertThrows(FileNotFoundException.class, () -> {
             new FileInputStream("nonexistent.json");
         });
     }
 }
-

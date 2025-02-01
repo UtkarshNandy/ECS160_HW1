@@ -8,11 +8,10 @@ import java.util.Map;
 import java.util.HashMap;
 
 public class SocialMediaAnalyzerDriver {
-    // parses command line arguments into a map with default values
     public static Map<String, String> parseArguments(String[] args) {
         Map<String, String> arguments = new HashMap<>();
-        arguments.put("file", "input.json"); // default input file
-        arguments.put("weighted", "false");   // default weighting setting
+        arguments.put("file", "input.json");
+        arguments.put("weighted", "false");
 
         for (String arg : args) {
             if (arg.startsWith("file=")) {
@@ -24,8 +23,27 @@ public class SocialMediaAnalyzerDriver {
         return arguments;
     }
 
+    private static BlueskyThread parseThread(JsonObject threadObject) {
+        JsonObject postObject = threadObject.getAsJsonObject("post");
+        JsonObject recordObject = postObject.getAsJsonObject("record");
+
+        List<BlueskyThread> replies = new ArrayList<>();
+        if (threadObject.has("replies")) {
+            JsonArray repliesArray = threadObject.getAsJsonArray("replies");
+            for (JsonElement replyElement : repliesArray) {
+                replies.add(parseThread(replyElement.getAsJsonObject()));
+            }
+        }
+
+        return new BlueskyThread(
+                recordObject.get("text").getAsString(),
+                recordObject.get("createdAt").getAsString(),
+                replies.isEmpty() ? null : replies,
+                postObject.get("replyCount").getAsInt()
+        );
+    }
+
     public static void main(String[] args) {
-        // parse command line arguments
         Map<String, String> arguments = parseArguments(args);
         String inputFile = arguments.get("file");
         boolean weighted = Boolean.parseBoolean(arguments.get("weighted"));
@@ -34,7 +52,6 @@ public class SocialMediaAnalyzerDriver {
         List<BlueskyThread> threads = new ArrayList<>();
 
         try {
-            // read and parse json input file
             JsonElement element;
             if (inputFile.equals("input.json")) {
                 element = JsonParser.parseReader(new InputStreamReader(
@@ -48,32 +65,26 @@ public class SocialMediaAnalyzerDriver {
                 JsonArray feedArray = jsonObject.get("feed").getAsJsonArray();
                 int postId = 0;
 
-                // process each thread in the feed
                 for (JsonElement feedObject : feedArray) {
                     if (feedObject.getAsJsonObject().has("thread")) {
                         JsonObject threadObject = feedObject.getAsJsonObject().getAsJsonObject("thread");
-                        Gson gson = new Gson();
-                        BlueskyThread thread = gson.fromJson(threadObject, BlueskyThread.class);
+                        BlueskyThread thread = parseThread(threadObject);
                         threads.add(thread);
-
-                        // store thread data in database
-                        List<String> replyIds = new ArrayList<>();
-                        if (thread.getReplies() != null) {
-                            for (int i = 0; i < thread.getReplies().size(); i++) {
-                                replyIds.add(postId + "_" + i);
-                            }
-                        }
-                        database.storePost(String.valueOf(postId), gson.toJson(thread.getPost()), replyIds);
+                        database.storeThread(thread, String.valueOf(postId));
                         postId++;
                     }
                 }
 
-                // calculate and output statistics
-                StatisticsCalc stats = new StatisticsCalc(threads, weighted);
+                Analyzer analyzer = weighted ?
+                        new WeightedAnalyzer(threads) :
+                        new BasicAnalyzer(threads);
+
                 System.out.println("Analysis Results:");
-                System.out.println("Total posts: " + stats.getTotalPosts());
-                System.out.println("Average number of replies: " + String.format("%.2f", stats.getAverageReplies()));
-                System.out.println("Average duration between replies: " + stats.getAverageInterval());
+                System.out.println("Total posts: " + analyzer.getTotalPosts());
+                System.out.println("Average number of replies: " +
+                        String.format("%.2f", analyzer.getAverageReplies()));
+                System.out.println("Average duration between replies: " +
+                        analyzer.getAverageInterval());
             }
         } catch (FileNotFoundException e) {
             System.err.println("Error: Could not find input file: " + inputFile);
